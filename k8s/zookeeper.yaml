@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: zookeper
+  name: zookeper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zookeper
+  template:
+    metadata:
+      labels:
+        app: zookeper
+    spec:
+      containers:
+        - image: wurstmeister/zookeeper
+          name: zookeper
+          ports:
+            - containerPort: 2181
+          resources: {}
+      restartPolicy: Always
+status: {}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: zookeper
+  name: zookeper
+spec:
+  ports:
+    - name: "2181"
+      port: 2181
+      targetPort: 2181
+  selector:
+    app: zookeper
+status:
+  loadBalancer: {}

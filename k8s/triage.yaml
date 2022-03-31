@@ -1,0 +1,131 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app: triage-db-storage
+  name: triage-db-storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: triage-mysqldb
+  name: triage-mysqldb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: triage-mysqldb
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: triage-mysqldb
+    spec:
+      containers:
+        - env:
+            - name: MYSQL_DATABASE
+              value: HospitalManagerDB
+            - name: MYSQL_PASSWORD
+              value: password
+            - name: MYSQL_ROOT_PASSWORD
+              value: secretpassword
+            - name: MYSQL_USER
+              value: admin
+          image: mysql
+          name: triage-mysqldb
+          ports:
+            - containerPort: 3309
+          resources: {}
+          securityContext:
+            capabilities:
+              add:
+                - SYS_NICE
+          volumeMounts:
+            - mountPath: /var/lib/mysql
+              name: triage-db-storage
+      restartPolicy: Always
+      volumes:
+        - name: triage-db-storage
+          persistentVolumeClaim:
+            claimName: triage-db-storage
+status: {}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: triage-mysqldb
+  name: triage-mysqldb
+spec:
+  ports:
+    - name: "3309"
+      port: 3309
+      targetPort: 3309
+  selector:
+    app: triage-mysqldb
+status:
+  loadBalancer: {}
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: triage-service
+  name: triage-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: triage-service
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: triage-service
+    spec:
+      containers:
+        - env:
+            - name: TRIAGE_DATASOURCE_HOST
+              value: triage-mysqldb
+            - name: TRIAGE_DATASOURCE_PORT
+              value: "3306"
+          image: triage-service
+          name: triage-service
+          ports:
+            - containerPort: 5555
+          resources: {}
+      restartPolicy: Always
+status: {}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: triage-service
+  name: triage-service
+spec:
+  ports:
+    - name: "5555"
+      port: 5555
+      targetPort: 5555
+  selector:
+    app: triage-service
+status:
+  loadBalancer: {}

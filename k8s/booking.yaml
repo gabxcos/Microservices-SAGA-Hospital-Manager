@@ -1,0 +1,131 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app: booking-db-storage
+  name: booking-db-storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: booking-mysqldb
+  name: booking-mysqldb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: booking-mysqldb
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: booking-mysqldb
+    spec:
+      containers:
+        - env:
+            - name: MYSQL_DATABASE
+              value: HospitalManagerDB
+            - name: MYSQL_PASSWORD
+              value: password
+            - name: MYSQL_ROOT_PASSWORD
+              value: secretpassword
+            - name: MYSQL_USER
+              value: admin
+          image: mysql
+          name: booking-mysqldb
+          ports:
+            - containerPort: 3306
+          resources: {}
+          securityContext:
+            capabilities:
+              add:
+                - SYS_NICE
+          volumeMounts:
+            - mountPath: /var/lib/mysql
+              name: booking-db-storage
+      restartPolicy: Always
+      volumes:
+        - name: booking-db-storage
+          persistentVolumeClaim:
+            claimName: booking-db-storage
+status: {}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: booking-mysqldb
+  name: booking-mysqldb
+spec:
+  ports:
+    - name: "3306"
+      port: 3306
+      targetPort: 3306
+  selector:
+    app: booking-mysqldb
+status:
+  loadBalancer: {}
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: booking-service
+  name: booking-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: booking-service
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: booking-service
+    spec:
+      containers:
+        - env:
+            - name: BOOKING_DATASOURCE_HOST
+              value: booking-mysqldb
+            - name: BOOKING_DATASOURCE_PORT
+              value: "3306"
+          image: booking-service
+          name: booking-service
+          ports:
+            - containerPort: 3333
+          resources: {}
+      restartPolicy: Always
+status: {}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: booking-service
+  name: booking-service
+spec:
+  ports:
+    - name: "3333"
+      port: 3333
+      targetPort: 3333
+  selector:
+    app: booking-service
+status:
+  loadBalancer: {}

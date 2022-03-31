@@ -1,0 +1,4 @@
+.vscode
+_docker-compose.yml
+surgery-entities
+*.log

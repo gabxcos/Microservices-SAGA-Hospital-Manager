@@ -1,0 +1,12 @@
+spring:
+  cloud:
+    stream:
+        kafka:
+            binder:
+                brokers: kafka:9092
+        bindings:
+            input:
+                destination: booking
+            output:
+                destination: patient-booking
+            

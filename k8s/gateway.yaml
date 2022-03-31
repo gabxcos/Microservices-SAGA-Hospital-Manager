@@ -1,0 +1,26 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: gateway
+  annotations:
+    ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - http:
+      paths:
+        - path: /patient
+          backend:
+            serviceName: patient-service
+            servicePort: 2222
+        - path: /booking
+          backend:
+            serviceName: booking-service
+            servicePort: 3333
+        - path: /surgery
+          backend:
+            serviceName: surgery-service
+            servicePort: 4444
+        - path: /triage
+          backend:
+            serviceName: triage-service
+            servicePort: 5555

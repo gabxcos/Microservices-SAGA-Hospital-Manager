@@ -1,0 +1,131 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app: patient-db-storage
+  name: patient-db-storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: patient-mysqldb
+  name: patient-mysqldb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: patient-mysqldb
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: patient-mysqldb
+    spec:
+      containers:
+        - env:
+            - name: MYSQL_DATABASE
+              value: HospitalManagerDB
+            - name: MYSQL_PASSWORD
+              value: password
+            - name: MYSQL_ROOT_PASSWORD
+              value: secretpassword
+            - name: MYSQL_USER
+              value: admin
+          image: mysql
+          name: patient-mysqldb
+          ports:
+            - containerPort: 3307
+          resources: {}
+          securityContext:
+            capabilities:
+              add:
+                - SYS_NICE
+          volumeMounts:
+            - mountPath: /var/lib/mysql
+              name: patient-db-storage
+      restartPolicy: Always
+      volumes:
+        - name: patient-db-storage
+          persistentVolumeClaim:
+            claimName: patient-db-storage
+status: {}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: patient-mysqldb
+  name: patient-mysqldb
+spec:
+  ports:
+    - name: "3307"
+      port: 3307
+      targetPort: 3307
+  selector:
+    app: patient-mysqldb
+status:
+  loadBalancer: {}
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: patient-service
+  name: patient-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: patient-service
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: patient-service
+    spec:
+      containers:
+        - env:
+            - name: PATIENT_DATASOURCE_HOST
+              value: patient-mysqldb
+            - name: PATIENT_DATASOURCE_PORT
+              value: "3306"
+          image: patient-service
+          name: patient-service
+          ports:
+            - containerPort: 2222
+          resources: {}
+      restartPolicy: Always
+status: {}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: patient-service
+  name: patient-service
+spec:
+  ports:
+    - name: "2222"
+      port: 2222
+      targetPort: 2222
+  selector:
+    app: patient-service
+status:
+  loadBalancer: {}

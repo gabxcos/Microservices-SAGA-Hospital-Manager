@@ -1,0 +1,131 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app: surgery-db-storage
+  name: surgery-db-storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: surgery-mysqldb
+  name: surgery-mysqldb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: surgery-mysqldb
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: surgery-mysqldb
+    spec:
+      containers:
+        - env:
+            - name: MYSQL_DATABASE
+              value: HospitalManagerDB
+            - name: MYSQL_PASSWORD
+              value: password
+            - name: MYSQL_ROOT_PASSWORD
+              value: secretpassword
+            - name: MYSQL_USER
+              value: admin
+          image: mysql
+          name: surgery-mysqldb
+          ports:
+            - containerPort: 3308
+          resources: {}
+          securityContext:
+            capabilities:
+              add:
+                - SYS_NICE
+          volumeMounts:
+            - mountPath: /var/lib/mysql
+              name: surgery-db-storage
+      restartPolicy: Always
+      volumes:
+        - name: surgery-db-storage
+          persistentVolumeClaim:
+            claimName: surgery-db-storage
+status: {}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: surgery-mysqldb
+  name: surgery-mysqldb
+spec:
+  ports:
+    - name: "3308"
+      port: 3308
+      targetPort: 3308
+  selector:
+    app: surgery-mysqldb
+status:
+  loadBalancer: {}
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: surgery-service
+  name: surgery-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: surgery-service
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: surgery-service
+    spec:
+      containers:
+        - env:
+            - name: SURGERY_DATASOURCE_HOST
+              value: surgery-mysqldb
+            - name: SURGERY_DATASOURCE_PORT
+              value: "3306"
+          image: surgery-service
+          name: surgery-service
+          ports:
+            - containerPort: 4444
+          resources: {}
+      restartPolicy: Always
+status: {}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: surgery-service
+  name: surgery-service
+spec:
+  ports:
+    - name: "4444"
+      port: 4444
+      targetPort: 4444
+  selector:
+    app: surgery-service
+status:
+  loadBalancer: {}
